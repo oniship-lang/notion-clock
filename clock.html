@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Clock</title>
+  <style>
+    :root{
+      --bg: transparent;
+      --cardBg: rgba(0,0,0,.35);
+      --fg: #e6edf3;
+      --sub: rgba(230,237,243,.75);
+      --accent: #6ee7ff;
+      --radius: 18px;
+      --pad: 18px;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+      --scale: 1;
+      --align: center; /* left/center/right */
+      --layout: card;  /* card / bar / minimal */
+    }
+
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);}
+    .wrap{height:100%;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;}
+    .frame{width:min(720px,100%);}
+
+    .card{
+      border-radius: var(--radius);
+      padding: var(--pad);
+      background: var(--cardBg);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(8px);
+    }
+
+    .row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+    .time{
+      font-weight: 800;
+      letter-spacing: .06em;
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(calc(36px * var(--scale)), calc(8vw * var(--scale)), calc(76px * var(--scale)));
+      text-align: var(--align);
+      width: 100%;
+    }
+    .meta{
+      margin-top: 10px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content: flex-start;
+      color: var(--sub);
+      font-size: calc(14px * var(--scale));
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+    }
+    .dot{
+      width:8px;height:8px;border-radius:50%;
+      background: var(--accent);
+      box-shadow: 0 0 16px rgba(110,231,255,.55);
+    }
+
+    /* layouts */
+    .layout-card .card { }
+    .layout-bar .card{
+      padding: calc(var(--pad) * 0.85);
+      border-radius: calc(var(--radius) * 0.9);
+    }
+    .layout-bar .time{
+      width:auto;
+      flex: 1 1 auto;
+      text-align: var(--align);
+      margin: 0;
+    }
+    .layout-bar .meta{margin-top:0;justify-content:flex-end;}
+    .layout-minimal .card{
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      backdrop-filter: none;
+      padding: 0;
+    }
+    .layout-minimal .pill{border-color: rgba(255,255,255,.12); background: rgba(255,255,255,.03);}
+
+    /* alignment helpers for bar layout */
+    .layout-bar .row{align-items:center;}
+    .layout-bar .timeWrap{flex:1 1 auto;}
+    .layout-bar .meta{flex:0 0 auto;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="root" class="frame layout-card">
+      <div class="card">
+        <div class="row">
+          <div class="timeWrap" style="flex:1 1 auto;">
+            <div id="time" class="time">--:--:--</div>
+          </div>
+          <div id="meta" class="meta" aria-label="meta">
+            <span id="pillTz" class="pill"><span class="dot"></span><span id="tzLabel">Local</span></span>
+            <span id="pillDate" class="pill"><span id="date">----</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(async function(){
+  const qs = new URLSearchParams(location.search);
+
+  // 1) profile presets (optional)
+  let preset = {};
+  const profile = qs.get("profile");
+  if (profile) {
+    try {
+      const res = await fetch("./presets.json", { cache: "no-store" });
+      const json = await res.json();
+      if (json && json[profile]) preset = json[profile];
+    } catch (e) { /* ignore */ }
+  }
+
+  // 2) merge: preset -> query overrides
+  const get = (k, def) => qs.has(k) ? qs.get(k) : (preset[k] ?? def);
+
+  const cfg = {
+    layout: get("layout", "card"),       // card|bar|minimal
+    align:  get("align", "center"),      // left|center|right
+    tz:     get("tz", null),             // e.g. Asia/Tokyo
+    h12:    get("h12", "0") === "1",
+    showSec:  get("sec", "1") === "1",
+    showDate: get("date", "1") === "1",
+    showTz:   get("tzShow", "1") === "1",
+    bg:     get("bg", "transparent"),
+    cardBg: get("cardBg", "rgba(0,0,0,.35)"),
+    fg:     get("fg", "#e6edf3"),
+    sub:    get("sub", "rgba(230,237,243,.75)"),
+    accent: get("accent", "#6ee7ff"),
+    radius: get("radius", "18"),
+    pad:    get("pad", "18"),
+    shadow: get("shadow", "1") === "1",
+    scale:  get("scale", "1")
+  };
+
+  const root = document.documentElement.style;
+
+  // apply css vars
+  root.setProperty("--bg", cfg.bg);
+  root.setProperty("--cardBg", cfg.cardBg);
+  root.setProperty("--fg", cfg.fg);
+  root.setProperty("--sub", cfg.sub);
+  root.setProperty("--accent", cfg.accent);
+  root.setProperty("--radius", `${Number(cfg.radius) || 18}px`);
+  root.setProperty("--pad", `${Number(cfg.pad) || 18}px`);
+  root.setProperty("--scale", String(Number(cfg.scale) || 1));
+  root.setProperty("--align", cfg.align);
+
+  root.setProperty("--shadow", cfg.shadow ? "0 10px 30px rgba(0,0,0,.35)" : "none");
+
+  // layout class
+  const rootEl = document.getElementById("root");
+  rootEl.classList.remove("layout-card","layout-bar","layout-minimal");
+  rootEl.classList.add(`layout-${cfg.layout}`);
+
+  // show/hide meta pills
+  const pillTz = document.getElementById("pillTz");
+  const pillDate = document.getElementById("pillDate");
+  pillTz.style.display = cfg.showTz ? "" : "none";
+  pillDate.style.display = cfg.showDate ? "" : "none";
+
+  const elTime = document.getElementById("time");
+  const elDate = document.getElementById("date");
+  const elTz   = document.getElementById("tzLabel");
+  elTz.textContent = cfg.tz ? cfg.tz : "Local";
+
+  const timeOpts = {
+    hour: "2-digit", minute: "2-digit",
+    hour12: cfg.h12,
+    ...(cfg.tz ? { timeZone: cfg.tz } : {})
+  };
+  if (cfg.showSec) timeOpts.second = "2-digit";
+
+  const fmtTime = new Intl.DateTimeFormat("ja-JP", timeOpts);
+
+  const fmtDate = new Intl.DateTimeFormat("ja-JP", {
+    year:"numeric", month:"2-digit", day:"2-digit", weekday:"short",
+    ...(cfg.tz ? { timeZone: cfg.tz } : {})
+  });
+
+  function tick(){
+    const now = new Date();
+    elTime.textContent = fmtTime.format(now);
+    if (cfg.showDate) elDate.textContent = fmtDate.format(now);
+  }
+  tick();
+  setInterval(tick, 250);
+})();
+</script>
+</body>
+</html>
