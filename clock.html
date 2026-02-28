@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notion Embed Clock</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: transparent;
+      --card-bg: rgba(17, 24, 39, 0.78);
+      --fg: #f9fafb;
+      --sub: #9ca3af;
+      --accent: #60a5fa;
+      --radius: 16px;
+      --pad: 16px;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      --scale: 1;
+      --align: center;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      width: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: Inter, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 12px;
+    }
+
+    .clock {
+      width: min(100%, 960px);
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+      gap: calc(6px * var(--scale));
+      text-align: var(--align);
+      transform: scale(1);
+      transform-origin: center;
+      transition: all 180ms ease;
+    }
+
+    .surface {
+      display: flex;
+      flex-direction: column;
+      gap: calc(4px * var(--scale));
+      background: var(--card-bg);
+      border-radius: calc(var(--radius) * 1px);
+      padding: calc(var(--pad) * 1px);
+      backdrop-filter: blur(5px);
+      box-shadow: var(--shadow);
+      min-width: 220px;
+    }
+
+    .time {
+      font-size: clamp(28px, calc(9vw * var(--scale)), 92px);
+      line-height: 1.05;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: var(--fg);
+      font-variant-numeric: tabular-nums;
+      text-wrap: balance;
+    }
+
+    .meta {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: var(--align);
+      color: var(--sub);
+      font-size: clamp(11px, calc(1.8vw * var(--scale)), 16px);
+      line-height: 1.3;
+      font-weight: 500;
+      min-height: 1.4em;
+    }
+
+    .meta .tz {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .layout-card .surface {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .layout-bar {
+      width: 100%;
+    }
+
+    .layout-bar .surface {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(18px * var(--scale));
+      border-radius: calc(max(8px, var(--radius)) * 1px);
+      width: 100%;
+    }
+
+    .layout-bar .time {
+      font-size: clamp(26px, calc(6vw * var(--scale)), 72px);
+    }
+
+    .layout-minimal .surface {
+      background: transparent;
+      border-radius: 0;
+      padding: 0;
+      box-shadow: none;
+      border: none;
+      backdrop-filter: none;
+    }
+
+    .layout-minimal .time {
+      text-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <main id="clock" class="clock layout-card">
+    <section class="surface">
+      <div id="time" class="time" aria-live="polite">--:--</div>
+      <div class="meta">
+        <span id="date" class="date"></span>
+        <span id="tz" class="tz"></span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (async function run() {
+      const DEFAULTS = {
+        layout: 'card',
+        align: 'center',
+        tz: '',
+        sec: '1',
+        date: '1',
+        tzShow: '1',
+        h12: '0',
+        scale: '1',
+        bg: 'transparent',
+        cardBg: 'rgba(17, 24, 39, 0.78)',
+        fg: '#f9fafb',
+        sub: '#9ca3af',
+        accent: '#60a5fa',
+        radius: '16',
+        pad: '16',
+        shadow: '1'
+      };
+
+      const allowedLayout = new Set(['card', 'bar', 'minimal']);
+      const allowedAlign = new Set(['left', 'center', 'right']);
+
+      const params = new URLSearchParams(location.search);
+      const profileName = params.get('profile');
+
+      async function loadProfile(name) {
+        if (!name) return {};
+        try {
+          const res = await fetch('./presets.json', { cache: 'no-store' });
+          if (!res.ok) return {};
+          const json = await res.json();
+          return (json && json[name]) || {};
+        } catch {
+          return {};
+        }
+      }
+
+      function cleanNumber(value, fallback, min, max) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return fallback;
+        return Math.min(max, Math.max(min, num));
+      }
+
+      function cleanBool(value, fallback) {
+        if (value === '1' || value === 1 || value === true) return '1';
+        if (value === '0' || value === 0 || value === false) return '0';
+        return fallback;
+      }
+
+      function cleanText(value, fallback) {
+        return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+      }
+
+      const profile = await loadProfile(profileName);
+      const merged = { ...DEFAULTS, ...profile };
+
+      for (const [key, val] of params.entries()) {
+        if (val !== null && val !== '') {
+          merged[key] = val;
+        }
+      }
+
+      merged.layout = allowedLayout.has(merged.layout) ? merged.layout : DEFAULTS.layout;
+      merged.align = allowedAlign.has(merged.align) ? merged.align : DEFAULTS.align;
+      merged.tz = cleanText(merged.tz, DEFAULTS.tz);
+      merged.sec = cleanBool(merged.sec, DEFAULTS.sec);
+      merged.date = cleanBool(merged.date, DEFAULTS.date);
+      merged.tzShow = cleanBool(merged.tzShow, DEFAULTS.tzShow);
+      merged.h12 = cleanBool(merged.h12, DEFAULTS.h12);
+      merged.scale = String(cleanNumber(merged.scale, Number(DEFAULTS.scale), 0.7, 1.5));
+      merged.radius = String(cleanNumber(merged.radius, Number(DEFAULTS.radius), 0, 64));
+      merged.pad = String(cleanNumber(merged.pad, Number(DEFAULTS.pad), 0, 64));
+      merged.bg = cleanText(merged.bg, DEFAULTS.bg);
+      merged.cardBg = cleanText(merged.cardBg, DEFAULTS.cardBg);
+      merged.fg = cleanText(merged.fg, DEFAULTS.fg);
+      merged.sub = cleanText(merged.sub, DEFAULTS.sub);
+      merged.accent = cleanText(merged.accent, DEFAULTS.accent);
+      merged.shadow = cleanBool(merged.shadow, DEFAULTS.shadow);
+
+      const clockEl = document.getElementById('clock');
+      const timeEl = document.getElementById('time');
+      const dateEl = document.getElementById('date');
+      const tzEl = document.getElementById('tz');
+      const rootStyle = document.documentElement.style;
+
+      clockEl.classList.remove('layout-card', 'layout-bar', 'layout-minimal');
+      clockEl.classList.add('layout-' + merged.layout);
+      rootStyle.setProperty('--bg', merged.bg);
+      rootStyle.setProperty('--card-bg', merged.cardBg);
+      rootStyle.setProperty('--fg', merged.fg);
+      rootStyle.setProperty('--sub', merged.sub);
+      rootStyle.setProperty('--accent', merged.accent);
+      rootStyle.setProperty('--radius', merged.radius);
+      rootStyle.setProperty('--pad', merged.pad);
+      rootStyle.setProperty('--align', merged.align);
+      rootStyle.setProperty('--scale', merged.scale);
+      rootStyle.setProperty('--shadow', merged.shadow === '1' ? '0 10px 30px rgba(0,0,0,.35)' : 'none');
+
+      const timeOpt = {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: merged.h12 === '1'
+      };
+      if (merged.sec === '1') {
+        timeOpt.second = '2-digit';
+      }
+      if (merged.tz) {
+        timeOpt.timeZone = merged.tz;
+      }
+
+      const dateOpt = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      };
+      if (merged.tz) {
+        dateOpt.timeZone = merged.tz;
+      }
+
+      let timeFmt;
+      let dateFmt;
+      try {
+        timeFmt = new Intl.DateTimeFormat(undefined, timeOpt);
+        dateFmt = new Intl.DateTimeFormat(undefined, dateOpt);
+      } catch {
+        delete timeOpt.timeZone;
+        delete dateOpt.timeZone;
+        timeFmt = new Intl.DateTimeFormat(undefined, timeOpt);
+        dateFmt = new Intl.DateTimeFormat(undefined, dateOpt);
+      }
+
+      function render() {
+        const now = new Date();
+        timeEl.textContent = timeFmt.format(now);
+        dateEl.textContent = merged.date === '1' ? dateFmt.format(now) : '';
+        dateEl.classList.toggle('hidden', merged.date !== '1');
+
+        const tzLabel = merged.tz || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
+        tzEl.textContent = merged.tzShow === '1' ? tzLabel : '';
+        tzEl.classList.toggle('hidden', merged.tzShow !== '1');
+      }
+
+      render();
+      setInterval(render, 250);
+    })();
+  </script>
+</body>
+</html>
