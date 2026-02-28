@@ -1,0 +1,32 @@
+{
+  "main": {
+    "layout": "card",
+    "align": "center",
+    "tz": "Asia/Tokyo",
+    "sec": "1",
+    "date": "1",
+    "tzShow": "1",
+    "h12": "0",
+    "shadow": "1",
+    "scale": "1",
+    "radius": "18",
+    "pad": "18",
+    "bg": "transparent",
+    "cardBg": "rgba(0,0,0,.35)",
+    "accent": "#6ee7ff",
+    "fg": "#e6edf3",
+    "sub": "rgba(230,237,243,.75)"
+  },
+  "minimal": {
+    "layout": "minimal",
+    "align": "center",
+    "tz": "Asia/Tokyo",
+    "sec": "0",
+    "date": "1",
+    "tzShow": "0",
+    "shadow": "0",
+    "scale": "1.05",
+    "bg": "transparent",
+    "cardBg": "transparent"
+  }
+}
