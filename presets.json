@@ -1,0 +1,38 @@
+{
+  "tokyo-neon": {
+    "layout": "card",
+    "align": "center",
+    "tz": "Asia/Tokyo",
+    "sec": "1",
+    "date": "1",
+    "tzShow": "1",
+    "h12": "0",
+    "scale": "1.1",
+    "bg": "transparent",
+    "cardBg": "rgba(15, 23, 42, 0.72)",
+    "fg": "#f8fafc",
+    "sub": "#94a3b8",
+    "accent": "#38bdf8",
+    "radius": "18",
+    "pad": "16",
+    "shadow": "1"
+  },
+  "minimal-utc": {
+    "layout": "minimal",
+    "align": "right",
+    "tz": "UTC",
+    "sec": "0",
+    "date": "0",
+    "tzShow": "1",
+    "h12": "0",
+    "scale": "1",
+    "bg": "transparent",
+    "cardBg": "rgba(0,0,0,0)",
+    "fg": "#e5e7eb",
+    "sub": "#9ca3af",
+    "accent": "#f59e0b",
+    "radius": "0",
+    "pad": "0",
+    "shadow": "0"
+  }
+}
